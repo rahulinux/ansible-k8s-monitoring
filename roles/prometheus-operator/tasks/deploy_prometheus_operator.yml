@@ -1,0 +1,123 @@
+---
+- name: Creating cluster role
+  k8s_v1alpha1_cluster_role:
+     state: '{{ state }}' 
+     labels:
+       k8s-app: prometheus-operator
+     name: prometheus-operator
+     rules: 
+       - apiGroups:
+         - extensions
+         resources:
+         - thirdpartyresources
+         verbs:
+         - "*"
+       - apiGroups:
+         - apiextensions.k8s.io
+         resources:
+         - customresourcedefinitions
+         verbs:
+         - "*"
+       - apiGroups:
+         - monitoring.coreos.com
+         resources:
+         - alertmanagers
+         - prometheuses
+         - servicemonitors
+         verbs:
+         - "*"
+       - apiGroups:
+         - apps
+         resources:
+         - statefulsets
+         verbs: ["*"]
+       - apiGroups: [""]
+         resources:
+         - configmaps
+         - secrets
+         verbs: ["*"]
+       - apiGroups: [""]
+         resources:
+         - pods
+         verbs: ["list", "delete"]
+       - apiGroups: [""]
+         resources:
+         - services
+         - endpoints
+         verbs: ["get", "create", "update"]
+       - apiGroups: [""]
+         resources:
+         - nodes
+         verbs: ["list", "watch"]
+       - apiGroups: [""]
+         resources:
+         - namespaces
+         verbs: ["list"]
+
+- name: Creating cluster role binding 
+  k8s_v1alpha1_cluster_role_binding: 
+    state: '{{ state }}'
+    name: prometheus-operator
+    labels:
+      k8s-app: prometheus-operator
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: ClusterRole
+    role_ref_name: prometheus-operator
+    subjects: 
+    - kind: ServiceAccount
+      name: prometheus-operator
+      namespace: monitoring
+    
+- name: creating service account 
+  k8s_v1_service_account: 
+     state: '{{ state }}'
+     name: prometheus-operator
+     namespace: monitoring
+
+- name: creating service 
+  k8s_v1_service: 
+    state: '{{ state }}'
+    namespace: monitoring
+    labels:
+      k8s-app: prometheus-operator
+    name: prometheus-operator
+    spec_ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+    spec_selector:
+      k8s-app: prometheus-operator
+
+- name: Deployment 
+  k8s_extensions_v1beta1_deployment:
+     state: '{{ state }}' 
+     name: prometheus-operator
+     namespace: monitoring
+     spec_template_metadata_labels:
+       k8s-app: prometheus-operator
+     spec_selector_match_labels:
+       k8s-app: prometheus-operator
+     spec_replicas: 1
+     service_account_name: prometheus-operator
+     containers:
+     - name: prometheus-operator
+       image: quay.io/coreos/prometheus-operator:v0.14.1
+       args:
+         - --kubelet-service=kube-system/kubelet
+         - --config-reloader-image=quay.io/coreos/configmap-reload:v0.0.1
+       ports: 
+       - containerPort: 8080
+         name: http
+       resources:
+         limits:
+           cpu: 200m
+           memory: 100Mi
+         requests:
+           cpu: 100m
+           memory: 50Mi
+
+- name: Waiting for Operator to register custom resource definitions.. sleep for 60 seconds..
+  pause: seconds=60
+  when: 'state == "present"'
+

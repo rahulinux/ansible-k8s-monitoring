@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  gather_facts: no
+  roles:
+     - role: ansible-kubernetes-modules
+       install_python_requirements: no
+
+     - role: prometheus-operator

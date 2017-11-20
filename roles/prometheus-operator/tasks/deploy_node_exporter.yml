@@ -1,0 +1,63 @@
+---
+- name: Deploying node exporter service
+  k8s_v1_service: 
+    state: '{{ state }}'
+    namespace: monitoring
+    labels:
+      app: node-exporter
+      k8s-app: node-exporter
+    name: node-exporter 
+    spec_ports:
+    - name: http-metrics
+      port: 9100
+      protocol: TCP
+    spec_selector:
+      app: node-exporter
+
+- name: Deploying node exporter daemon set
+  k8s_v1beta1_daemon_set:
+    namespace: monitoring 
+    name: node-exporter
+    state: '{{ state }}'
+    spec_template_metadata_labels:
+      app: node-exporter 
+    spec_selector_match_labels:
+      app: node-exporter 
+    host_network: true
+    host_pid: true
+    containers:
+    - name: node-exporter 
+      image: quay.io/prometheus/node-exporter:v0.15.0 
+      args:
+        - "--path.procfs=/host/proc"
+        - "--path.sysfs=/host/sys"
+      ports: 
+      - containerPort: 9100
+        name: scrape
+        hostPort: 9100
+      resources:
+        limits:
+          cpu: 200m
+          memory: 50Mi
+        requests:
+          cpu: 30m
+          memory: 30Mi
+      volume_mounts:
+      - name: proc
+        read_only: true
+        mount_path: /host/proc
+      - name: sys
+        read_only: true
+        mount_path: /host/sys
+    tolerations:
+    - effect: NoSchedule
+      operator: Exists
+    volumes:
+    - name: proc
+      host_path:
+        path: /proc
+    - name: sys
+      host_path: 
+        path: /sys
+
+

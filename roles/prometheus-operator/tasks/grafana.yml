@@ -1,0 +1,175 @@
+---
+- name: Creating cluster role
+  k8s_v1alpha1_cluster_role:
+     state: '{{ state }}' 
+     labels:
+       k8s-app: grafana 
+     name: grafana 
+     rules: 
+     - apiGroups: [""]
+       resources:
+       - nodes
+       - pods
+       - services
+       - resourcequotas
+       - replicationcontrollers
+       - limitranges
+       - persistentvolumeclaims
+       verbs: ["list", "watch"]
+     - apiGroups: ["extensions"]
+       resources:
+       - daemonsets
+       - deployments
+       - replicasets
+       verbs: ["list", "watch"]
+     - apiGroups: ["apps"]
+       resources:
+       - statefulsets
+       verbs: ["list", "watch"]
+     - apiGroups: ["batch"]
+       resources:
+       - cronjobs
+       - jobs
+       verbs: ["list", "watch"]
+     
+- name: Creating cluster role binding 
+  k8s_v1alpha1_cluster_role_binding: 
+    state: '{{ state }}'
+    name: grafana 
+    labels:
+      k8s-app: grafana 
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: ClusterRole
+    role_ref_name: grafana 
+    subjects: 
+    - kind: ServiceAccount
+      name: grafana 
+      namespace: monitoring
+    
+- name: creating service account 
+  k8s_v1_service_account: 
+     state: '{{ state }}'
+     name: grafana 
+     namespace: monitoring
+
+- name: Creating grafana secrets
+  k8s_v1_secret: 
+    name: grafana-credentials
+    state: '{{ state }}'
+    namespace: monitoring
+    data:
+      user: '{{ grafana_user | default("admin") | b64encode }}' 
+      password: '{{ grafana_password | default("admin") | b64encode }}' 
+
+- name: Creating grafana service
+  k8s_v1_service:
+     name: grafana
+     labels:
+       app: grafana
+     state: '{{ state }}'
+     namespace: monitoring
+     type: NodePort
+     ports:
+     - port: 3000
+       protocol: TCP
+       node_port: 30902
+       target_port: web
+     selector:
+       app: grafana
+
+- set_fact:
+     files: "{{ lookup('fileglob','files/grafana-dashboards/*.json', wantlist=true ) | list }}"
+
+- template: src=grafana-dashboards.yaml.j2 dest=/tmp/grafana-dashboards.yaml
+
+- name: creating configmap 
+  k8s_v1_config_map:
+    name: grafana-dashboards-0
+    state: '{{ state }}'
+    src: /tmp/grafana-dashboards.yaml 
+
+- name: Deployment 
+  k8s_extensions_v1beta1_deployment:
+     state: '{{ state }}' 
+     name: grafana 
+     namespace: monitoring
+     spec_template_metadata_labels:
+       app: grafana 
+     spec_selector_match_labels:
+       app: grafana 
+     spec_replicas: 1
+     service_account_name: grafana 
+     containers:
+     - name: grafana 
+       image: grafana/grafana:4.5.2 
+       ports: 
+       - containerPort: 3000
+         name: web
+       env: 
+         - name: GF_AUTH_BASIC_ENABLED
+           value: "true"
+         - name: GF_AUTH_ANONYMOUS_ENABLED
+           value: "false"
+         - name: GF_SECURITY_ADMIN_USER
+           value_from: 
+             secret_key_ref: 
+                name: grafana-credentials
+                key: user
+         - name: GF_SECURITY_ADMIN_PASSWORD
+           value_from: 
+             secret_key_ref: 
+                name: grafana-credentials
+                key: password
+       resources:
+         limits:
+           cpu: 200m
+           memory: 200Mi
+         requests:
+           cpu: 100m
+           memory: 100Mi
+       readiness_probe:
+         http_get:
+           path: /api/health
+           port: 3000
+         initial_delay_seconds: 5
+         timeout_seconds: 5
+       liveness_probe:
+         tcp_socket:
+            port: 3000
+         timeout_seconds: 10
+         initial_delay_seconds: 10
+     - name: grafana-watcher 
+       image:  quay.io/coreos/grafana-watcher:v0.0.8 
+       resources:
+         limits:
+           cpu: 200m
+           memory: 100Mi
+         requests:
+           cpu: 100m
+           memory: 50Mi
+       env: 
+         - name: GRAFANA_USER
+           value_from: 
+             secret_key_ref: 
+                name: grafana-credentials
+                key: user
+         - name: GRAFANA_PASSWORD
+           value_from: 
+             secret_key_ref: 
+                name: grafana-credentials
+                key: password
+       args:
+       - '--watch-dir=/var/grafana-dashboards-0'
+       - '--grafana-url=http://localhost:3000'
+       volume_mounts: 
+       - name: grafana-dashboards-0
+         mount_path: /var/grafana-dashboards-0
+     volumes:
+     - name: grafana-storage
+       empty_dir: 
+         medium: {}
+     - name: grafana-dashboards-0
+       config_map: 
+         name: grafana-dashboards-0
+
+

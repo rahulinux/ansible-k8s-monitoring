@@ -1,0 +1,21 @@
+---
+- set_fact: state={{ state | default('present') }} 
+
+- name: creating monitoring namespace
+  k8s_v1_namespace: 
+     state: '{{ state }}'
+     name: monitoring
+
+- include: deploy_prometheus_operator.yml
+- include: deploy_node_exporter.yml 
+- include: kube_state_metrics.yml
+- include: grafana.yml
+- include: promethues-k8s.yml
+
+  # - k8s_v1_namespace: 
+  #      state: absent
+  #      name: monitoring
+  #   when: 'state == "absent"'
+  #   ignore_errors: True
+  # 
+

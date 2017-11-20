@@ -1,0 +1,251 @@
+---
+- name: Creating Configmap
+  k8s_v1_config_map: 
+     state: '{{ state }}'
+     namespace: monitoring
+     src: "{{ role_path }}/files/prometheus-k8s-rules.yaml"
+
+- name: creating service account 
+  k8s_v1_service_account: 
+     state: '{{ state }}'
+     name:  prometheus-k8s
+     namespace: monitoring
+
+- name: creating service monitor for alertmanager 
+  k8s_promethues:
+     state: '{{ state }}'
+     name: alertmanager
+     namespace: monitoring
+     kind: ServiceMonitor
+     labels:
+       k8s-app: alertmanager
+     spec:
+       selector:
+         matchLabels:
+           alertmanager: main
+       namespaceSelector:
+         matchNames:
+         - monitoring
+       endpoints:
+       - port: web
+         interval: 30s
+
+- name: creating service monitor for apiserver
+  k8s_promethues:
+     state: '{{ state }}'
+     name: kube-apiserver
+     namespace: monitoring
+     kind: ServiceMonitor
+     labels:
+       k8s-app: apiserver
+     spec:
+       jobLabel: component
+       selector:
+         matchLabels:
+           component: apiserver
+           provider: kubernetes
+       namespaceSelector:
+         matchNames:
+         - default
+       endpoints:
+       - port: https
+         interval: 30s
+         scheme: https
+         tlsConfig:
+           caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+           serverName: kubernetes
+         bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+- name: creating service monitor for kube-controller-manager
+  k8s_promethues:
+     state: '{{ state }}'
+     name: kube-controller-manager
+     namespace: monitoring
+     kind: ServiceMonitor
+     labels:
+       k8s-app: kube-controller-manager
+     spec:
+       jobLabel: k8s-app
+       endpoints:
+       - port: http-metrics
+         interval: 30s
+       selector:
+         matchLabels:
+           k8s-app: kube-controller-manager
+       namespaceSelector:
+         matchNames:
+         - kube-system
+
+- name: creating service monitorr for kube-scheduler
+  k8s_promethues:
+     state: '{{ state }}'
+     name: kube-scheduler 
+     namespace: monitoring
+     labels:
+       k8s-app: kube-scheduler
+     kind: ServiceMonitor
+     spec:
+       jobLabel: k8s-app
+       endpoints:
+       - port: http-metrics
+         interval: 30s
+       selector:
+         matchLabels:
+           k8s-app: kube-scheduler
+       namespaceSelector:
+         matchNames:
+         - kube-system
+
+
+- name: creating service monitorr for kube-state-metrics
+  k8s_promethues:
+     state: '{{ state }}'
+     name: kube-state-metrics
+     namespace: monitoring
+     labels:
+       k8s-app: kube-state-metrics
+     kind: ServiceMonitor
+     spec:
+       jobLabel: k8s-app
+       selector:
+         matchLabels:
+           k8s-app: kube-state-metrics
+       namespaceSelector:
+         matchNames:
+         - monitoring
+       endpoints:
+       - port: http-metrics
+         interval: 30s
+         honorLabels: true
+
+- name: creating service monitor for kubelet
+  k8s_promethues:
+     state: '{{ state }}'
+     name: kubelet
+     namespace: monitoring
+     labels:
+       k8s-app: kubelet 
+     kind: ServiceMonitor
+     spec:
+       jobLabel: k8s-app
+       endpoints:
+       - port: http-metrics
+         interval: 30s
+       - port: cadvisor
+         interval: 30s
+         honorLabels: true
+       selector:
+         matchLabels:
+           k8s-app: kubelet
+       namespaceSelector:
+         matchNames:
+         - kube-system
+ 
+- name: creating service monitor for node-exporter
+  k8s_promethues:
+     state: '{{ state }}'
+     name: node-exporter
+     namespace: monitoring
+     kind: ServiceMonitor
+     labels:
+       k8s-app: node-exporter
+     spec:
+       jobLabel: k8s-app
+       selector:
+         matchLabels:
+           k8s-app: node-exporter
+       namespaceSelector:
+         matchNames:
+         - monitoring
+       endpoints:
+       - port: http-metrics
+         interval: 30s
+
+ 
+- name: creating service monitor for prometheus-operator
+  k8s_promethues:
+     state: '{{ state }}'
+     name: prometheus-operator 
+     kind: ServiceMonitor
+     namespace: monitoring
+     labels:
+       k8s-app: prometheus-operator 
+     spec:
+       endpoints:
+       - port: http
+       selector:
+         matchLabels:
+           k8s-app: prometheus-operator
+
+
+- name: creating service monitor for prometheus
+  k8s_promethues:
+     state: '{{ state }}'
+     name: prometheus 
+     namespace: monitoring
+     kind: ServiceMonitor 
+     labels:
+       k8s-app: prometheus 
+     spec:
+      selector:
+        matchLabels:
+          prometheus: k8s
+      namespaceSelector:
+        matchNames:
+        - monitoring
+      endpoints:
+      - port: web
+        interval: 30s
+ 
+- name: Creating prometheus service
+  k8s_v1_service:
+     name: prometheus-k8s
+     labels:
+       prometheus: k8s 
+     state: '{{ state }}'
+     namespace: monitoring
+     type: NodePort
+     ports:
+     - name: web
+       nodePort: 30900
+       port: 9090
+       protocol: TCP
+       targetPort: web
+     selector:
+       prometheus: k8s
+
+- name: Creating Prometheus 
+  k8s_promethues:
+     state: '{{ state }}'
+     name: k8s
+     namespace: monitoring
+     kind:  Prometheus
+     labels:
+        prometheus: k8s
+     spec:
+       replicas: 2
+       version: v2.0.0
+       serviceAccountName: prometheus-k8s
+       serviceMonitorSelector:
+         matchExpressions:
+         - {key: k8s-app, operator: Exists}
+       ruleSelector:
+         matchLabels:
+           role: prometheus-rulefiles
+           prometheus: k8s
+       resources:
+         limits: 
+           cpu: 100m
+           memory: 400Mi
+         requests:
+           cpu: 100m
+           # 2Gi is default, but won't schedule if you don't have a node with >2Gi
+           # memory. Modify based on your target and time-series count for
+           # production use. This value is mainly meant for demonstration/testing
+           # purposes.
+           memory: 400Mi
+       alerting:
+         alertmanagers:
+         - namespace: monitoring
+           name: alertmanager-main
+           port: web

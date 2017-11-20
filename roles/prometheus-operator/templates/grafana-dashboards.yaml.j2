@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: grafana-dashboards-0
+  namespace: monitoring
+data: 
+{% for file in files %}
+  {{ file | basename }}: |+
+     {{ lookup('file',file) | indent(6) }} 
+{% endfor %}
+  
+
