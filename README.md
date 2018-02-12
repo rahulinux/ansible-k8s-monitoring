@@ -17,7 +17,7 @@ Let's get start with setup...
 
 
 
-# GitLab repo
+# Git repo
 
 You can install directly from the source on gitlab by following these steps:
 
@@ -34,7 +34,7 @@ cd ansible-k8s-monitoring
 
 This project assumes you have a basic knowledge of how [ansible](https://en.wikipedia.org/wiki/Ansible_(software)) works and have already prepared your hosts for configuration by ansible.
 
-playbook uses `ansible-kubernetes-module`  to deploy on your kubernets cluster, you will need to require `~/.kube/config` which will connect to your kubernetes cluster. 
+playbook uses `ansible-kubernetes-module`  to deploy on your kubernets cluster, you will need to require `~/.kube/config` which will connect to your kubernetes cluster. You can use `ansible-bootstrap-node` role to configure this.
 
 also this playbook uses to fetch secrets from Vault. so you need to store secrets called `'admin_pass'`, in vault and provide the path inside variable
 
