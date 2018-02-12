@@ -1,0 +1,21 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+     - include_role: 
+         name: ansible-kubernetes-modules
+       vars:
+         install_python_requirements: no
+
+     - include_role: 
+         name: prometheus-service
+       vars:
+         app_name: "{{ item }}"
+         port_name: "web"
+         port: "8080" 
+         metrics_path: "/metrics" 
+         namespace: default
+         selector: 
+            app: "{{ item }}" 
+       with_items:
+           - "example-app"

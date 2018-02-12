@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-main  
+data:
+{% for file in files %} 
+  {{ file | basename }} : "{{ lookup('template',file) | b64encode }}" 
+{% endfor %}
+  alertmanager.yaml: "{{ lookup('template','alertmanager.yaml.j2') | b64encode }}" 

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-k8s-rules-new
+  namespace: monitoring
+  labels:
+    role: prometheus-rulefiles
+    prometheus: k8s
+data:
+  simple.rules.yaml: |+
+    groups:
+    - name: simple.rules
+      rules:
+      - alert: SimpleDeploymentMissing
+        expr: kube_deployment_status_replicas{deployment="example-app"} < 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations: 
+          description: "Prometheus could not find the Simple Deployment"

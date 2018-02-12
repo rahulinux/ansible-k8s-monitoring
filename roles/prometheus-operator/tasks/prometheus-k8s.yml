@@ -1,4 +1,134 @@
 ---
+- name: Creating role
+  k8s_v1alpha1_role:
+     state: '{{ state }}' 
+     labels:
+       k8s-app: prometheus-k8s 
+     name: prometheus-k8s 
+     namespace: monitoring
+     rules: 
+     - apiGroups: [""]
+       resources:
+       - nodes
+       - pods
+       - services
+       - resourcequotas
+       - replicationcontrollers
+       - limitranges
+       - persistentvolumeclaims
+       verbs: ["get","list", "watch"]
+     - apiGroups: [""]
+       resources:
+       - configmaps
+       verbs: ["get"]
+     
+- name: Creating role
+  k8s_v1alpha1_role:
+     state: '{{ state }}' 
+     labels:
+       k8s-app: prometheus-k8s 
+     name: kube-system 
+     namespace: monitoring
+     rules: 
+     - apiGroups: [""]
+       resources:
+       - nodes
+       - pods
+       - services
+       - endpoints
+       verbs: ["get","list", "watch"]
+
+- name: Creating role
+  k8s_v1alpha1_role:
+     state: '{{ state }}' 
+     labels:
+       k8s-app: prometheus-k8s 
+     name: default 
+     namespace: monitoring
+     rules: 
+     - apiGroups: [""]
+       resources:
+       - nodes
+       - pods
+       - services
+       - endpoints
+       verbs: ["get","list", "watch"]
+ 
+- name: creating cluster role
+  k8s_v1alpha1_cluster_role:
+     state: "{{ state }}"
+     name: prometheus-k8s
+     rules:
+     - apiGroups: [""]
+       resources:
+       - nodes
+       - pods
+       - services
+       - endpoints
+       verbs: ["get","list", "watch"]
+     - nonResourceURLs: ["/metrics"]
+       verbs: ["get"]
+
+- name: Creating cluster role binding 
+  k8s_v1alpha1_role_binding: 
+    state: '{{ state }}'
+    name: prometheus-k8s 
+    namespace: monitoring
+    labels:
+      k8s-app: prometheus-k8s 
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: Role
+    role_ref_name: prometheus-k8s 
+    subjects: 
+    - kind: ServiceAccount
+      name: prometheus-k8s 
+      namespace: monitoring
+
+
+- name: Creating role binding 
+  k8s_v1alpha1_role_binding: 
+    state: '{{ state }}'
+    name: prometheus-k8s 
+    namespace: kube-system
+    labels:
+      k8s-app: prometheus-k8s 
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: Role
+    role_ref_name: prometheus-k8s 
+    subjects: 
+    - kind: ServiceAccount
+      name: prometheus-k8s 
+      namespace: monitoring
+
+- name: Creating role binding 
+  k8s_v1alpha1_role_binding: 
+    state: '{{ state }}'
+    name: prometheus-k8s 
+    namespace: default 
+    labels:
+      k8s-app: prometheus-k8s 
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: Role
+    role_ref_name: prometheus-k8s 
+    subjects: 
+    - kind: ServiceAccount
+      name: prometheus-k8s 
+      namespace: monitoring
+
+- name: Creating role binding 
+  k8s_v1alpha1_cluster_role_binding: 
+    state: '{{ state }}'
+    name: prometheus-k8s 
+    labels:
+      k8s-app: prometheus-k8s 
+    role_ref_api_group: rbac.authorization.k8s.io
+    role_ref_kind: ClusterRole
+    role_ref_name: prometheus-k8s 
+    subjects: 
+    - kind: ServiceAccount
+      name: prometheus-k8s 
+      namespace: monitoring
+
 - name: Creating Configmap
   k8s_v1_config_map: 
      state: '{{ state }}'
@@ -12,7 +142,7 @@
      namespace: monitoring
 
 - name: creating service monitor for alertmanager 
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: alertmanager
      namespace: monitoring
@@ -31,7 +161,7 @@
          interval: 30s
 
 - name: creating service monitor for apiserver
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: kube-apiserver
      namespace: monitoring
@@ -57,7 +187,7 @@
          bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
 
 - name: creating service monitor for kube-controller-manager
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: kube-controller-manager
      namespace: monitoring
@@ -77,7 +207,7 @@
          - kube-system
 
 - name: creating service monitorr for kube-scheduler
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: kube-scheduler 
      namespace: monitoring
@@ -98,7 +228,7 @@
 
 
 - name: creating service monitorr for kube-state-metrics
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: kube-state-metrics
      namespace: monitoring
@@ -119,7 +249,7 @@
          honorLabels: true
 
 - name: creating service monitor for kubelet
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: kubelet
      namespace: monitoring
@@ -142,7 +272,7 @@
          - kube-system
  
 - name: creating service monitor for node-exporter
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: node-exporter
      namespace: monitoring
@@ -158,12 +288,12 @@
          matchNames:
          - monitoring
        endpoints:
-       - port: http-metrics
+       - port: http-metrics 
          interval: 30s
 
  
 - name: creating service monitor for prometheus-operator
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: prometheus-operator 
      kind: ServiceMonitor
@@ -179,7 +309,7 @@
 
 
 - name: creating service monitor for prometheus
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: prometheus 
      namespace: monitoring
@@ -215,7 +345,7 @@
        prometheus: k8s
 
 - name: Creating Prometheus 
-  k8s_promethues:
+  k8s_prometheus:
      state: '{{ state }}'
      name: k8s
      namespace: monitoring
@@ -235,15 +365,15 @@
            prometheus: k8s
        resources:
          limits: 
-           cpu: 100m
-           memory: 400Mi
+           cpu: 200m
+           memory: 1024Mi
          requests:
-           cpu: 100m
+           cpu: 200m
            # 2Gi is default, but won't schedule if you don't have a node with >2Gi
            # memory. Modify based on your target and time-series count for
            # production use. This value is mainly meant for demonstration/testing
            # purposes.
-           memory: 400Mi
+           memory: 1024Mi
        alerting:
          alertmanagers:
          - namespace: monitoring

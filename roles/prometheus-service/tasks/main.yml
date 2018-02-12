@@ -1,0 +1,31 @@
+---
+- set_fact: 
+    state: "{{ state | default('present') }}"
+    namespace: "{{ namespace | default('default') }}"
+
+- name: Creating service monitor 
+  k8s_prometheus:
+    state: '{{ state }}'
+    namespace: "monitoring"
+    name: "{{ app_name }}"
+    kind: ServiceMonitor
+    labels:
+      k8s-app: "{{ app_name }}" 
+    spec:
+      selector: 
+        matchLabels:
+          "{{ selector }}"
+      namespaceSelector:
+        matchNames:
+        - "{{ namespace }}"
+      endpoints:
+      - port: "{{ port_name }}"
+        path: "{{ metrics_path }}"
+
+- template: src=default_alerts_configmap.yaml.j2 dest=/tmp/alert_configmap.yml 
+
+- name: Alert configuration for application
+  k8s_v1_config_map:
+    name: "{{ app_name }}-alerts"
+    state: "{{ state }}"
+    src: "/tmp/alert_configmap.yml"

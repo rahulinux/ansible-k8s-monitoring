@@ -30,8 +30,13 @@ class CustomResource(object):
               if i['metadata']['name'] == body['metadata']['name']:
                  header_params['Content-Type'] = self.api_client.select_header_content_type(['application/merge-patch+json'])
                  resource_path = i['metadata']['selfLink']
+                 # Fix :: Invalid value: \"ServiceMonitor\": must be monitoring.coreos.com/v1","field":"apiVersion" 
+                 # Patch does not accept Kind need to remove before submit data
+                 # del body['kind']
+                 # return body,resource_path
                  (resp, code, header) = self.api_client.call_api(
-                   resource_path, 'PATCH', { 'name': 'prometheus', 'namespace': namespace }, {}, header_params, body, [], _preload_content=True)
+                   resource_path, 'PATCH', { 'namespace': namespace }, {}, header_params, body, [], _preload_content=True)
+                   #resource_path, 'PATCH', { 'name': body['name'], 'namespace': namespace }, {}, header_params, body, [], _preload_content=True)
                  if code == 200:
                     return json.dumps(dict(status="Successfully Updated"))
                  return json.dumps(dict(status="Something wrong with patch object"))
@@ -44,6 +49,11 @@ class CustomResource(object):
 
         elif body.get('state') == 'absent':
            body['kind'] = 'DeleteOptions'
+           for i in data['items']:
+              if i['metadata']['name'] == body['metadata']['name']:
+                 resource_path = i['metadata']['selfLink']
+           else:
+               return json.dumps(dict(status="No object to delete"))
            (resp, code, header) = self.api_client.call_api(
                    resource_path, 'DELETE', {'namespace': namespace}, {}, header_params, body, [], _preload_content=False)
            data = json.loads(resp.data.decode('utf-8'))
@@ -65,8 +75,8 @@ def k8s_prometheus(data):
     kinds = { 'ServiceMonitor' : 'servicemonitors',
               'Prometheus': 'prometheuses',
               'Alertmanager': 'alertmanagers' }
-    api_response = api.run(body=data,domain='monitoring.coreos.com',
-            api_version='v1',kind=kinds.get(data.get('kind')),namespace='monitoring') 
+    api_response = api.run(body=data,namespace=data['metadata']['namespace'],domain='monitoring.coreos.com',
+            api_version='v1',kind=kinds.get(data.get('kind'))) 
     if 'Success' in api_response:
           return (True,api_response)
     return (False,api_response)
@@ -77,7 +87,7 @@ def run_module():
 
     module_args = dict(
             name=dict(type='str',required=True),
-            namespace=dict(type='str',required=True),
+            namespace=dict(type='str',required=False,default='default'),
             spec=dict(type='dict',required=False),
             labels=dict(type='dict',required=False),
             state=dict(type='str',required=False,default='present'),

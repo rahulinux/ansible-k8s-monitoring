@@ -1,0 +1,11 @@
+---
+  - name: read secrets from vault
+    hashivault_read:
+      secret: "{{vault_path}}/config"
+    register: config_data
+    become: false
+    delegate_to: localhost
+    no_log: true
+  - name: extract secrets
+    set_fact:
+      secrets: "{{config_data.value}}"

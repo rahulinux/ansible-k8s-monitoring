@@ -58,8 +58,8 @@
     state: '{{ state }}'
     namespace: monitoring
     data:
-      user: '{{ grafana_user | default("admin") | b64encode }}' 
-      password: '{{ grafana_password | default("admin") | b64encode }}' 
+      user: '{{ "admin" | b64encode }}' 
+      password: '{{ secrets.admin_pass | b64encode }}' 
 
 - name: Creating grafana service
   k8s_v1_service:
@@ -171,5 +171,9 @@
      - name: grafana-dashboards-0
        config_map: 
          name: grafana-dashboards-0
+  register: deployment_result
+  failed_when: ( deployment_result.changed is defined and not deployment_result.changed ) or ( deployment_result.msg is defined and 'Failed to patch' not in deployment_result.msg )
+
+
 
 

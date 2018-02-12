@@ -1,0 +1,45 @@
+---
+
+- set_fact:
+     files: "{{ lookup('fileglob','templates/alertmanager-templates/*.tmpl', wantlist=true ) | list }}"
+
+- template: src=alertmanager-files.yaml.j2 dest=/tmp/.alertmanager.yaml
+
+- debug: var=data 
+
+- name: Creating config secrets for alertmanager
+  k8s_v1_secret:
+    name: alertmanager-main 
+    state: '{{ state }}'
+    namespace: monitoring
+    src: /tmp/.alertmanager.yaml
+
+- name: Creating alertmanager 
+  k8s_prometheus:
+     state: '{{ state }}'
+     name: main 
+     namespace: monitoring
+     kind: Alertmanager 
+     labels:
+       alertmanager: main 
+     spec:
+       replicas: 3 
+       version: v0.9.1
+
+- name: Creating grafana service
+  k8s_v1_service:
+     name: alertmanager-main 
+     namespace: monitoring
+     labels:
+       alertmanager: main 
+     state: '{{ state }}'
+     type: NodePort
+     ports:
+     - name: web
+       nodePort: 30903
+       port: 9093
+       protocol: TCP
+       targetPort: web
+     selector:
+       alertmanager: main 
+

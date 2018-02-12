@@ -11,6 +11,7 @@
     - name: http-metrics
       port: 9100
       protocol: TCP
+      target_port: http-metrics
     spec_selector:
       app: node-exporter
 
@@ -33,7 +34,7 @@
         - "--path.sysfs=/host/sys"
       ports: 
       - containerPort: 9100
-        name: scrape
+        name: http-metrics
         hostPort: 9100
       resources:
         limits:

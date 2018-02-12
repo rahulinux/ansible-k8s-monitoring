@@ -15,22 +15,22 @@
        - replicationcontrollers
        - limitranges
        - persistentvolumeclaims
-       verbs: ["list", "watch"]
+       verbs: [ "get", "list", "watch"]
      - apiGroups: ["extensions"]
        resources:
        - daemonsets
        - deployments
        - replicasets
-       verbs: ["list", "watch"]
+       verbs: [ "get", "list", "watch"]
      - apiGroups: ["apps"]
        resources:
        - statefulsets
        verbs: ["list", "watch"]
      - apiGroups: ["batch"]
        resources:
-       - cronjobs
        - jobs
-       verbs: ["list", "watch"]
+       - cronjobs
+       verbs: [ "get", "list", "watch"]
      
 - name: Creating cluster role binding 
   k8s_v1alpha1_cluster_role_binding: 

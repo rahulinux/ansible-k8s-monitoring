@@ -5,17 +5,16 @@
   k8s_v1_namespace: 
      state: '{{ state }}'
      name: monitoring
+  when: state == 'present'
 
-- include: deploy_prometheus_operator.yml
-- include: deploy_node_exporter.yml 
-- include: kube_state_metrics.yml
+  #- include: deploy_prometheus_operator.yml
+  #- include: deploy_node_exporter.yml 
+  #- include: kube_state_metrics.yml
+  #- include: prometheus-k8s.yml
 - include: grafana.yml
-- include: promethues-k8s.yml
+  #- include: alertmanager.yml
 
-  # - k8s_v1_namespace: 
-  #      state: absent
-  #      name: monitoring
-  #   when: 'state == "absent"'
-  #   ignore_errors: True
-  # 
-
+- k8s_v1_namespace: 
+     state: '{{ state }}'
+     name: monitoring
+  when: state == 'absent'

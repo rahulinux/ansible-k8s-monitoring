@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  gather_facts: no
+  roles:
+  - role: ansible-kubernetes-modules
+    install_python_requirements: no
+
+  tasks:
+  - name: Create service for example app
+    k8s_v1_service:
+      name: example-app
+      namespace: default
+      labels:
+         app: example-app
+      ports:
+      - name: web
+        port: 8080
+      selector:
+        app: example-app
+
+  - name: Deploying example app
+    k8s_extensions_v1beta1_deployment:
+      name: example-app
+      namespace: default
+      spec_template_metadata_labels:
+        app: example-app
+      containers:
+      - name: example-app
+        image: fabxc/instrumented_app
+        ports:
+        - containerPort: 8080
+          name: web
+

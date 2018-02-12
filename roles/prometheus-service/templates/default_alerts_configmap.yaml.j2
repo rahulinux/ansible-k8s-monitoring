@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ app_name }}-alerts"
+  namespace: monitoring
+  labels:
+     role: prometheus-rulefiles
+     prometheus: k8s
+data:
+   {{ app_name }}.rules.yaml: |+
+      groups:
+      - name: {{ app_name }}.rules
+        rules:
+        - alert: IfAny{{ app_name }}PodDown
+          expr: up{endpoint="{{ port_name }}",job="{{ app_name }}"} == 0 
+          for: 1m
+          labels:
+             severity: critical
+             service: example-app
+             sendto: slack
+          annotations:
+             description: "Prometheus could not find the {{ app_name }} desire running pods"

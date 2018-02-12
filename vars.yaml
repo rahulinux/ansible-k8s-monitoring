@@ -1,0 +1,12 @@
+# SMTP details 
+vault_path: '/secret/deploys/aws/promethues'
+email_from: "noreply@external.com"
+email_name: "Portus"
+reply_to: "noreply@external.com"
+smtp_server: "email-smtp.us-east-1.amazonaws.com"
+smtp_port: "587"
+smtp_domain: "external.com"
+# channel should be allowed while creating app in slack
+slack_channel: "#myteam"
+# smtp_user will read from secrets 
+# smtp_pass will read from screts
